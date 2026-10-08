@@ -1,5 +1,9 @@
-# syntax=docker/dockerfile:1
 # Yank 同步服务（syncd）：开源发布用的服务端镜像 —— **国内镜像版**。
+#
+# 顶上那句 `# syntax=docker/dockerfile:1` 是**故意不加**的：它会让 buildkit 先去
+# docker.io 拉一个 docker/dockerfile 前端镜像，而这张网到不了那里 —— 实测第一帧就
+# `dial tcp …:443 i/o timeout`。这份文件用的特性（多阶段、ARG 写在 FROM 前、COPY --from、
+# HEALTHCHECK）内置前端全支持，没有 RUN --mount / heredoc，所以不需要外部前端。
 #
 # 基础镜像走华为云 SWR 的公共加速地址（ddn-k8s 那一路 docker.io 镜像）：
 #   swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/golang:1.27.1-alpine

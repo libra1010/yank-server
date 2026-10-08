@@ -1,6 +1,8 @@
-# syntax=docker/dockerfile:1
 # Yank 同步服务（syncd）：开源发布用的服务端镜像 —— **标准版**，基础镜像直接从官方
 # Docker Hub 取（`golang`、`alpine` 都在 library 那一组名下）。
+#
+# 不写 `# syntax=docker/dockerfile:1`：那一句要多拉一个 docker/dockerfile 前端镜像，
+# 而这份文件用的特性内置前端全支持（理由与国内那版一样，见 Dockerfile.cn 顶上）。
 #
 # 国内网络拉不动官方源就用同一条构建的另一份：`Dockerfile.cn`（华为云 SWR 加速地址）。
 # 两份的指令部分由 scripts/check.sh 逐行对账，改一边忘了另一边会红。
