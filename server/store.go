@@ -21,11 +21,11 @@ import (
 // DDL 为准 —— 同一个来源既跑在 Migrate() 里，也打印成 migrations/{mysql,postgres}.sql 那两份
 // 全量交付件给 DBA 审（sqlite 不交付，按版本递增的增量脚本已废）。两个理由都不是口味：
 //
-//   · GORM 的 Migrator 取不出建表语句的文本（CreateTable 返回 error 而不是 *gorm.DB，ToSQL
-//     那扇门对它不开；DryRun 会话下驱动的 HasTable 还会直接 nil 崩）。"审的就是我跑的"守不住。
-//   · AutoMigrate 会照它从结构体推出来的类型判断去 ALTER 它认为不合的列。手写 DDL 里信封正文是
-//     MEDIUMBLOB（8 MiB），而 []byte 在 GORM 眼里是另一种形状 —— 一次启动悄悄把列收窄，是那种
-//     "部署看着好的、第一次大推送才炸"的坏法。
+//	· GORM 的 Migrator 取不出建表语句的文本（CreateTable 返回 error 而不是 *gorm.DB，ToSQL
+//	  那扇门对它不开；DryRun 会话下驱动的 HasTable 还会直接 nil 崩）。"审的就是我跑的"守不住。
+//	· AutoMigrate 会照它从结构体推出来的类型判断去 ALTER 它认为不合的列。手写 DDL 里信封正文是
+//	  MEDIUMBLOB（8 MiB），而 []byte 在 GORM 眼里是另一种形状 —— 一次启动悄悄把列收窄，是那种
+//	  "部署看着好的、第一次大推送才炸"的坏法。
 //
 // 所以分工：表、列、索引、类型继续由那一份 DDL 说了算；GORM 负责读写。于是 `?` 改 `$n` 这类
 // 方言翻译、以及驱动名拼错这一整类错（pgx 注册的驱动名是 "pgx"，从前这里递的是 "postgres"，
@@ -124,7 +124,7 @@ func (s *Store) exec(query string, args ...any) (sql.Result, error) {
 // "列存在"都成功，这条探法因此只有一份实现。
 func (s *Store) hasColumn(table, column string) bool {
 	// 两个标识符都来自本文件的常量，不是用户输入。
-	return s.db.QueryRow("SELECT " + column + " FROM " + table + " LIMIT 0").Err() == nil
+	return s.db.QueryRow("SELECT "+column+" FROM "+table+" LIMIT 0").Err() == nil
 }
 
 // ddlFor 是 `syncd -ddl <方言>` 那一半：不连库、只把建表语句原样打印出来。所以 migrations/ 里

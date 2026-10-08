@@ -5,17 +5,17 @@
 // 字段类型是**刻意**选了能和那两份 DDL 互通的写法 ——
 // 因为"DBA 先把表建好、再把 CREATE 权限收掉"是一条受支持的安装路径，两条路必须落在同一个形状上：
 //
-//   · 时间列存 VARCHAR(32) 的 RFC3339 串，不是 TIMESTAMP。三方言拿回来的表示本来就一致
-//     （sqlite 给串、mysql/pgsql 给 time.Time），换成 TIMESTAMP 等于把这个问题请回来，
-//     而且那是一次改表 + 存量迁移，不是改代码。ORDER BY created_at 靠 UTC RFC3339 的字典序
-//     仍然是时间序。
-//   · revoked 用 int 不用 bool：手写 DDL 里那一格是 INTEGER，pgsql 把 BOOLEAN 列和 INTEGER 列
-//     分得很清，结构体写 bool 就读不出 DBA 那条路上建起来的库。0/1 由调用方自己判。
-//   · 列名照库里的写（host_group、snippet_group、skey），不让 GORM 从字段名推导：
-//     group 和 key 在 MySQL 里是保留字，这是当初为了三方言逐字相同做的取舍，不能在这一步丢掉。
-//   · hosts 与 snippets 两张表没有主键（一次推送整体 DELETE+INSERT），blob_history 的键是
-//     (user_id, revision) 复合 —— 都不符合 GORM "单列 ID 主键"的默认想象，所以凡是要定点
-//     更新/删除的地方都显式给 Where，不赌它自己拼得出条件。
+//	· 时间列存 VARCHAR(32) 的 RFC3339 串，不是 TIMESTAMP。三方言拿回来的表示本来就一致
+//	  （sqlite 给串、mysql/pgsql 给 time.Time），换成 TIMESTAMP 等于把这个问题请回来，
+//	  而且那是一次改表 + 存量迁移，不是改代码。ORDER BY created_at 靠 UTC RFC3339 的字典序
+//	  仍然是时间序。
+//	· revoked 用 int 不用 bool：手写 DDL 里那一格是 INTEGER，pgsql 把 BOOLEAN 列和 INTEGER 列
+//	  分得很清，结构体写 bool 就读不出 DBA 那条路上建起来的库。0/1 由调用方自己判。
+//	· 列名照库里的写（host_group、snippet_group、skey），不让 GORM 从字段名推导：
+//	  group 和 key 在 MySQL 里是保留字，这是当初为了三方言逐字相同做的取舍，不能在这一步丢掉。
+//	· hosts 与 snippets 两张表没有主键（一次推送整体 DELETE+INSERT），blob_history 的键是
+//	  (user_id, revision) 复合 —— 都不符合 GORM "单列 ID 主键"的默认想象，所以凡是要定点
+//	  更新/删除的地方都显式给 Where，不赌它自己拼得出条件。
 package main
 
 // 这八个结构体不带 gorm.Model：那一套会塞进 id/created_at/updated_at/deleted_at 五格，
@@ -44,9 +44,9 @@ type deviceRow struct {
 func (deviceRow) TableName() string { return "devices" }
 
 type pairCodeRow struct {
-	CodeHash string `gorm:"column:code_hash;size:64;primaryKey"`
-	UserID   string `gorm:"column:user_id;size:32;not null"`
-	ExpiresAt string `gorm:"column:expires_at;size:32;not null"`
+	CodeHash  string  `gorm:"column:code_hash;size:64;primaryKey"`
+	UserID    string  `gorm:"column:user_id;size:32;not null"`
+	ExpiresAt string  `gorm:"column:expires_at;size:32;not null"`
 	UsedAt    *string `gorm:"column:used_at;size:32"`
 }
 
