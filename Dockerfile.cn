@@ -1,9 +1,16 @@
 # syntax=docker/dockerfile:1
-# Yank 同步服务（syncd）：开源发布用的服务端镜像 —— **标准版**，基础镜像直接从官方
-# Docker Hub 取（`golang`、`alpine` 都在 library 那一组名下）。
+# Yank 同步服务（syncd）：开源发布用的服务端镜像 —— **国内镜像版**。
 #
-# 国内网络拉不动官方源就用同一条构建的另一份：`Dockerfile.cn`（华为云 SWR 加速地址）。
-# 两份的指令部分由 scripts/check.sh 逐行对账，改一边忘了另一边会红。
+# 基础镜像走华为云 SWR 的公共加速地址（ddn-k8s 那一路 docker.io 镜像）：
+#   swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/golang:1.27.1-alpine
+#   swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/alpine:3.23.3
+# Go 模块默认 goproxy.cn。这一份是"网络出不了境也能建起来"的那一条路；
+# 官方源那一版叫 `Dockerfile`，两份的指令部分由 scripts/check.sh 逐行对账。
+#
+# 换别的加速地址不必改这份文件：
+#   docker build -f Dockerfile.cn --build-arg MIRROR=docker.m.daocloud.io/library ...
+# 留空 MIRROR 就回官方 Docker Hub（~/.docker/daemon.json 里配了 registry-mirrors 也照样生效）：
+#   docker build -f Dockerfile.cn --build-arg MIRROR= ...
 #
 # 两阶段构建的理由：管理端（Vue）已经用 go:embed 打进 server/webdist，容器里根本不需要
 # Node —— 构建层只要有 Go，运行层只要一个能跑 healthcheck 的 alpine。
@@ -11,13 +18,13 @@
 # 这套、内核是 modernc，mysql/pgsql 走 go-sql-driver 与 pgx），所以运行层不装 libc 之外的
 # 任何东西，也不带编译器。
 
+ARG MIRROR=swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library
 ARG GO_VERSION=1.27.1
 ARG ALPINE_VERSION=3.23.3
 
-FROM golang:${GO_VERSION}-alpine AS build
+FROM ${MIRROR}/golang:${GO_VERSION}-alpine AS build
 
-# 官方代理；内网构建可以 --build-arg GOPROXY=https://goproxy.cn,direct 覆盖，不改这份文件。
-ARG GOPROXY=https://proxy.golang.org,direct
+ARG GOPROXY=https://goproxy.cn,direct
 ENV GOPROXY=${GOPROXY} \
     CGO_ENABLED=0 \
     GOOS=linux \
@@ -36,7 +43,7 @@ RUN go build -ldflags "-s -w -X main.version=${VERSION}" -o /out/syncd .
 # 构建层就把测试跑一遍：门禁红在这里，比部署到机器上再红便宜得多。
 RUN go test ./...
 
-FROM alpine:${ALPINE_VERSION} AS runtime
+FROM ${MIRROR}/alpine:${ALPINE_VERSION} AS runtime
 
 # 不用 root 跑：这个服务对外收 HTTP，镜像里也没有任何需要 root 的事。
 # uid 固定成 10001 —— 换成 bind mount 挂 /data 时，宿主机那一侧要 chown 的就是这个数字，

@@ -12,10 +12,11 @@ services:
   syncd:
     build:
       context: .
-      dockerfile: Dockerfile
+      # 国内加速那一份；官方源走同目录下的 Dockerfile（指令部分由 scripts/check.sh 对账）。
+      dockerfile: Dockerfile.cn
       args:
         # 想换基础镜像源/代理，改这两个就够了，不必动 Dockerfile。
-        MIRROR: ${MIRROR:-docker.m.daocloud.io/library}
+        MIRROR: ${MIRROR:-swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library}
         GOPROXY: ${GOPROXY:-https://goproxy.cn,direct}
         VERSION: ${IMAGE_TAG:-dev}
     image: yank-syncd:${IMAGE_TAG:-dev}
@@ -51,7 +52,7 @@ services:
 # 想让 DBA 先审 SQL 再建仓，见 migrations/mysql.sql 与 migrations/postgres.sql（全量，两份）。
 #
 #   database:
-#     image: docker.m.daocloud.io/library/postgres:16-alpine
+#     image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/library/postgres:16-alpine
 #     restart: unless-stopped
 #     environment:
 #       POSTGRES_USER: syncd

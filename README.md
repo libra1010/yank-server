@@ -17,8 +17,17 @@ docker compose ps         # healthcheck 应变成 healthy
 curl -s localhost:8791/api/healthz
 ```
 
-`docker-compose.yml` 里基础镜像与 Go 模块默认走国内加速地址（`MIRROR`、`GOPROXY` 两个 build-arg，
-想换源不必改文件）。产物是 `CGO_ENABLED=0` 的纯静态二进制 + alpine 运行层，非 root（uid 10001）跑。
+建镜像有两份 Dockerfile，指令一模一样，只有基础镜像的地址不同：
+
+- **`Dockerfile.cn`（`docker-compose.yml` 默认用它）**：基础镜像走华为云 SWR 的公共加速地址，
+  Go 模块默认 `goproxy.cn` —— 出不了境的机器上唯一能一把建起来的那一份。
+- **`Dockerfile`（标准版）**：`FROM golang:…-alpine` / `FROM alpine:…` 直接取官方 Docker Hub，
+  `GOPROXY` 默认 `proxy.golang.org`。要它就用 `docker compose build` 前把 `dockerfile:` 指过来，
+  或 `docker build -f Dockerfile .`。
+
+两份不许各改各的：`scripts/check.sh` 去掉源地址与 `GOPROXY` 默认值后逐行比对指令部分，
+漂了就红（少一份文件也算红，不会静默跳过）。换别的加速地址不必改文件：`MIRROR`、`GOPROXY`
+两个 build-arg 就够。产物是 `CGO_ENABLED=0` 的纯静态二进制 + alpine 运行层，非 root（uid 10001）跑。
 
 ## 不装容器：单二进制
 
