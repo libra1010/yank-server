@@ -4,7 +4,7 @@
 # 不写 `# syntax=docker/dockerfile:1`：那一句要多拉一个 docker/dockerfile 前端镜像，
 # 而这份文件用的特性内置前端全支持（理由与国内那版一样，见 Dockerfile.cn 顶上）。
 #
-# 国内网络拉不动官方源就用同一条构建的另一份：`Dockerfile.cn`（华为云 SWR 加速地址）。
+# 与国内那版的关系：同一条构建的另一份是 `Dockerfile.cn`（华为云 SWR 加速地址），
 # 两份的指令部分由 scripts/check.sh 逐行对账，改一边忘了另一边会红。
 #
 # 两阶段构建的理由：管理端（Vue）已经用 go:embed 打进 server/webdist，容器里根本不需要
@@ -12,6 +12,10 @@
 # 产物是纯静态二进制（CGO_ENABLED=0；GORM 那三个方言驱动都是纯 Go —— sqlite 走 glebarez
 # 这套、内核是 modernc，mysql/pgsql 走 go-sql-driver 与 pgx），所以运行层不装 libc 之外的
 # 任何东西，也不带编译器。
+#
+# 这里**不跑测试**：门在仓里（`sh scripts/check.sh`），要连着三方言真跑那种就在 CI 里跑它。
+# 镜像构建的职责是把二进制编出来；把测试塞进构建层，红的是构建、不是产品，
+# 而且构建层是 root —— 有几条用文件权限模拟"没有建表权限"的门在 root 下根本测不出来。
 
 ARG GO_VERSION=1.27.1
 ARG ALPINE_VERSION=3.23.3
@@ -35,16 +39,6 @@ COPY server/ ./
 ARG VERSION=dev
 RUN go build -ldflags "-s -w -X main.version=${VERSION}" -o /out/syncd .
 
-# go test 还要吃两份提交进仓的产物：testdata/（互操作向量 + 客户端上行契约）与 migrations/
-# （给 DBA 审的那两份全量 DDL）。.dockerignore 把整棵树挡在上下文外，这两个目录得单独放行 ——
-# 不放行时向量与契约那两条会硬红（缺文件就红，不静默跳过），DDL 那条会自己报"这轮没得查"。
-# 放在 go build 之后：改测试夹具不该把二进制那一层重编一遍。
-COPY testdata/ /testdata/
-COPY migrations/ /migrations/
-
-# 构建层就把测试跑一遍：门禁红在这里，比部署到机器上再红便宜得多。
-RUN go test ./...
-
 FROM alpine:${ALPINE_VERSION} AS runtime
 
 # 不用 root 跑：这个服务对外收 HTTP，镜像里也没有任何需要 root 的事。
@@ -58,7 +52,7 @@ COPY --from=build /out/syncd /usr/local/bin/syncd
 # 数据库落在 /data 这个卷上，重建容器不会把清单一起重建掉。
 # 口令类的环境变量（SYNCD_ADMIN_PASSWORD、通道密钥）一个都不写在这里 —— 镜像是要公开的。
 ENV SYNCD_LISTEN=0.0.0.0:8791 \
-    SYNCD_DSN=sqlite:///data/dropterm-sync.db
+    SYNCD_DSN=sqlite:///data/yank-sync.db
 
 VOLUME /data
 EXPOSE 8791

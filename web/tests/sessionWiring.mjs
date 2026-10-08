@@ -47,7 +47,7 @@ const server = await createServer({
   logLevel: 'error',
 });
 
-const SESSION_KEY = 'dropterm.session';
+const SESSION_KEY = 'yank.session';
 
 try {
   // ① 刚打开页面：盘上什么都没有 → 必须是登录页，而不是"看着登录了、一请求就 401"。

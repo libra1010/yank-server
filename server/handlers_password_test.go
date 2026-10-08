@@ -12,8 +12,8 @@ import (
 // Mac 客户端的设备令牌不受网页改密的影响。响应里绝不回显任何口令。
 
 const (
-	oldPass = "dropterm-old-2026"
-	newPass = "dropterm-new-2026"
+	oldPass = "yank-old-2026"
+	newPass = "yank-new-2026"
 )
 
 func (e *env) loginAs(user, password string) (string, int) {

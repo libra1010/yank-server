@@ -1,4 +1,4 @@
-module dropterm/syncd
+module github.com/libra1010/yank-server/server
 
 go 1.27.1
 

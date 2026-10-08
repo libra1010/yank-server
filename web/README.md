@@ -78,7 +78,7 @@ npm run test:channel-page  # 页面配置通道密钥（口令）的状态机（
 它们唯一的服务对象就是「浏览器输入端到端口令 + WebCrypto 本地解密」这条路。
 
 随之**取消的是跨语言口令信封互操作向量测试**：`tests/crypto.test.ts` 原先直接解密
-`syncd/testdata/envelope-vectors.json` 里由 Swift 端 `dropterm-selftest` 生成的向量，
+`syncd/testdata/envelope-vectors.json` 里由 Yank 客户端 selftest 生成的向量，
 用来证明浏览器↔Swift 的口令信封逐字节一致。现在浏览器不具备也不该具备解密能力，
 这类向量不再属于本目录；同一份向量仍由 Go 侧
 `syncd/server/envelope_test.go` 消费，Swift↔Go 的一致性没有丢，只是不再经过前端。

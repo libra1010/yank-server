@@ -29,8 +29,9 @@ curl -s localhost:8791/api/healthz
 漂了就红（少一份文件也算红，不会静默跳过）。换别的加速地址不必改文件：`MIRROR`、`GOPROXY`
 两个 build-arg 就够。产物是 `CGO_ENABLED=0` 的纯静态二进制 + alpine 运行层，非 root（uid 10001）跑。
 
-构建层会 `go test ./...` 一遍再出镜像，它吃 `testdata/` 与 `migrations/` 这两份提交产物 ——
-`.dockerignore` 只放 `server/` 进上下文，所以这两个目录单独开了洞，`Dockerfile` 里有对应的 `COPY`。
+镜像构建层**不跑测试**：它的职责只是把二进制编出来，而构建层是 root —— 有几条门用文件权限
+模拟"应用账号没有建表权限"，在 root 下根本测不出来，红的是构建而不是产品。门在仓里跑：
+`sh scripts/check.sh`（gofmt + vet + `go test ./...`），要连真库跑就按上面那节给 `SYNCD_TEST_DSN`。
 其中 `testdata/inventory-contract.json` 是**闭源客户端上行形状的快照**：本仓只比"服务端常量 == 快照"，
 "快照 == 客户端"那一半由客户端的门查（详见 `testdata/README.md`）。
 
@@ -38,7 +39,7 @@ curl -s localhost:8791/api/healthz
 
 ```bash
 cd server && go build -o /usr/local/bin/syncd .   # Go ≥ 1.27，不需要 cgo
-syncd -listen 127.0.0.1:8791 -dsn sqlite:///var/lib/syncd/dropterm-sync.db
+syncd -listen 127.0.0.1:8791 -dsn sqlite:///var/lib/syncd/yank-sync.db
 ```
 
 管理台已经 `go:embed` 进二进制（`server/webdist/`），所以线上形态是**同一个端口同时给 API 和页面**：
@@ -54,7 +55,7 @@ syncd -listen 127.0.0.1:8791 -dsn sqlite:///var/lib/syncd/dropterm-sync.db
 | 环境变量 | 默认值 | 作用 | 对应参数 |
 | --- | --- | --- | --- |
 | `SYNCD_LISTEN` | `127.0.0.1:8791` | 监听地址。容器里镜像默认给的是 `0.0.0.0:8791`，因为端口映射穿过 127.0.0.1 会失效 | `-listen` |
-| `SYNCD_DSN` | `sqlite://dropterm-sync.db` | 数据库，带方言前缀，见下一节 | `-dsn` |
+| `SYNCD_DSN` | `sqlite://yank-sync.db` | 数据库，带方言前缀，见下一节 | `-dsn` |
 | `SYNCD_OPEN_SIGNUP` | `1` | 写 `0` 关掉自助注册：`POST /api/register` 直接 `403`。已登录的会话与设备不受影响 | 无 |
 | `SYNCD_ADMIN_USER` | 空（不建号） | **只在库里没有这个账号时**建号。已存在就一个字都不动 —— 否则页面上改过的口令会被一次重启悄悄换回来 | 无 |
 | `SYNCD_ADMIN_PASSWORD` | 空 | 只被上面那一次建号用到；最短 10 字符，口令散列与页面注册同一套 argon2id。建完号建议从 `.env` 里删掉，以后只在页面改 | 无 |
@@ -72,7 +73,7 @@ MySQL 要的是 go-sql-driver 那串（摘掉前缀后原样递给驱动），Po
 SQLite 是路径。两边不一致不是这里选的，别把它"顺手统一"成一种写法。
 
 ```
-sqlite:///data/dropterm-sync.db
+sqlite:///data/yank-sync.db
 mysql://syncd:pw@tcp(db.internal:3306)/syncd            ← go-sql-driver 那一串，tcp(...) 不能省
 postgres://syncd:pw@db.internal:5432/syncd?sslmode=disable   ← PG 只认 URL 形，keyword 串不支持
 ```

@@ -14,7 +14,7 @@ export type StoredSession = {
   expiresAt: number;
 };
 
-export const SESSION_KEY = 'dropterm.session';
+export const SESSION_KEY = 'yank.session';
 export const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
 /** 内存版 storage：隐私模式或配额满时兜底，行为与真 storage 一致，只是刷新就没了。 */

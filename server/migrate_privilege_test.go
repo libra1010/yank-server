@@ -38,6 +38,12 @@ func TestMigrateNeedsNoDDLPrivilegesWhenSchemaExists(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.Chmod(dbPath, 0o644) })
 
+	// root 不受文件权限约束（CAP_DAC_OVERRIDE），这一档在 root 下模拟不出"没有建表权限"。
+	// 说清楚而不是硬跑：硬跑的"通过"是假的，跳过则要写明是被环境挡了。
+	if os.Geteuid() == 0 {
+		t.Skip("以 root 跑：只读文件挡不住 DDL，这一档测不出东西（非 root 的开发机与 CI 会跑到）")
+	}
+
 	// 对照一：这个只读状态真发不出 DDL。
 	if _, err := store.exec("CREATE TABLE probe_should_fail (x INTEGER)"); err == nil {
 		t.Fatal("只读的库文件居然还能建表 —— 这一轮没模拟出\"没有建表权限\"，下面的通过不算数")

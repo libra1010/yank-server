@@ -37,7 +37,7 @@ func envOr(key, fallback string) string {
 func main() {
 	listen := flag.String("listen", envOr("SYNCD_LISTEN", "127.0.0.1:8791"),
 		"监听地址（env SYNCD_LISTEN）；公网部署请放在反代/TLS 后面")
-	dsn := flag.String("dsn", envOr("SYNCD_DSN", "sqlite://dropterm-sync.db"),
+	dsn := flag.String("dsn", envOr("SYNCD_DSN", "sqlite://yank-sync.db"),
 		"sqlite://路径 | mysql://… | postgres://…（env SYNCD_DSN）")
 	ddl := flag.String("ddl", "", "只打印这一方言的建表语句（sqlite|mysql|postgres）然后退出：给 DBA 复核用")
 	flag.Parse()

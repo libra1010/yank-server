@@ -27,7 +27,7 @@ services:
     environment:
       SYNCD_LISTEN: 0.0.0.0:8791
       # 换库只改这一行 + 下面的 DATABASE 服务；表结构 syncd 起来自己补，不需要手工跑 SQL。
-      SYNCD_DSN: ${SYNCD_DSN:-sqlite:///data/dropterm-sync.db}
+      SYNCD_DSN: ${SYNCD_DSN:-sqlite:///data/yank-sync.db}
       # 0 = 关闭自助注册。关掉之后 /api/register 直接回 403，加账号要么先临时开一下再关，
       # 要么用下面的 SYNCD_ADMIN_USER 在首次启动时把管理账号建出来。
       SYNCD_OPEN_SIGNUP: ${SYNCD_OPEN_SIGNUP:-1}
