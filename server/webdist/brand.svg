@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Yank">
+  <!-- Yank 的标记：一对终端括号 [ ]，中间一颗琥珀点 —— 光标停在哪，命令就从哪敲下去。
+       两个颜色：青括号 #5ac8a8、琥珀点 #e6aa5a。没有丝带、没有描边字。
+       两括号关于 x=50 严格镜像，所以整枚是真左右对称的。
+       几何与 App 图标（tools/make-icon.swift）、菜单栏（Sources/TermUI/BrandMark.swift）同一套，
+       改一处就要改四处（门禁 Checks_Brand 拿 BrandMark 的常量算出这些数，逐条在这里对账）。
+       viewBox 的 y 轴朝下，所以单位坐标（y 朝上）在这里是 100 − y×100。 -->
+  <polyline points="36 26 25 26 25 74 36 74" fill="none" stroke="#5ac8a8" stroke-width="7.5"
+            stroke-linecap="round" stroke-linejoin="round" />
+  <polyline points="64 26 75 26 75 74 64 74" fill="none" stroke="#5ac8a8" stroke-width="7.5"
+            stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="50" cy="50" r="7.5" fill="#e6aa5a" />
+</svg>

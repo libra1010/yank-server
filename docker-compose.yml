@@ -1,0 +1,65 @@
+# Yank 同步服务：单机起一个实例的最小编排。
+#
+#   cp .env.example .env   # 填管理账号（可选）和要不要开放注册
+#   docker compose up -d --build
+#   docker compose ps      # healthcheck 应该变成 healthy
+#   curl -s localhost:8791/api/healthz
+#
+# 端口只绑 127.0.0.1：这台服务收的是端到端信封，明文的那部分是主机清单与片段清单，
+# 要放到公网上请自己套反代 + TLS（见 README.md「放在公网之前」那一节）。
+
+services:
+  syncd:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # 想换基础镜像源/代理，改这两个就够了，不必动 Dockerfile。
+        MIRROR: ${MIRROR:-docker.m.daocloud.io/library}
+        GOPROXY: ${GOPROXY:-https://goproxy.cn,direct}
+        VERSION: ${IMAGE_TAG:-dev}
+    image: yank-syncd:${IMAGE_TAG:-dev}
+    container_name: yank-syncd
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8791:8791"
+    environment:
+      SYNCD_LISTEN: 0.0.0.0:8791
+      # 换库只改这一行 + 下面的 DATABASE 服务；表结构 syncd 起来自己补，不需要手工跑 SQL。
+      SYNCD_DSN: ${SYNCD_DSN:-sqlite:///data/dropterm-sync.db}
+      # 0 = 关闭自助注册。关掉之后 /api/register 直接回 403，加账号要么先临时开一下再关，
+      # 要么用下面的 SYNCD_ADMIN_USER 在首次启动时把管理账号建出来。
+      SYNCD_OPEN_SIGNUP: ${SYNCD_OPEN_SIGNUP:-1}
+      # 只在"这个库里还没有这个账号"时建号；已存在的账号一个字都不动 ——
+      # 页面上改过口令以后，重启不会悄悄把它换回环境变量里那一串。
+      SYNCD_ADMIN_USER: ${SYNCD_ADMIN_USER:-}
+      # 首次启动的那一次才用得到；口令最短长度由服务端自己判。它不进日志、不进镜像。
+      # 建完号就建议从 .env 里删掉，以后改口令只在管理页面改。
+      SYNCD_ADMIN_PASSWORD: ${SYNCD_ADMIN_PASSWORD:-}
+    volumes:
+      # 用命名卷：首次挂载时镜像里 /data 的属主（uid 10001）会被带进卷里，容器不写不进去。
+      # 想改成 bind mount 直接看文件，就得自己先把宿主机那个目录交给同一个 uid：
+      #   mkdir -p ./data && sudo chown 10001 ./data
+      #   - ./data:/data
+      - syncd-data:/data
+
+# 要用 MySQL / PostgreSQL 时把这一段去掉注释，并把 SYNCD_DSN 换成
+#   mysql://syncd:syncd@tcp(database:3306)/syncd        （go-sql-driver 那一串，tcp(...) 不能省）
+#   postgres://syncd:syncd@database:5432/syncd?sslmode=disable   （PG 只认 URL 形）
+# 前缀只用来挑方言，剩下的形状是驱动定的，不是这里选的。
+# 表结构不用手工建：syncd 启动时 CREATE TABLE IF NOT EXISTS 一遍。
+# 想让 DBA 先审 SQL 再建仓，见 migrations/0001-baseline-{sqlite,mysql,postgres}.sql。
+#
+#   database:
+#     image: docker.m.daocloud.io/library/postgres:16-alpine
+#     restart: unless-stopped
+#     environment:
+#       POSTGRES_USER: syncd
+#       POSTGRES_PASSWORD: syncd
+#       POSTGRES_DB: syncd
+#     volumes:
+#       - syncd-pg:/var/lib/postgresql/data
+
+volumes:
+  syncd-data:
+  # syncd-pg:

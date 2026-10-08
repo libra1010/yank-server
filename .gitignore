@@ -1,0 +1,32 @@
+# 本目录是公开仓库的根（服务端开源，Mac 客户端在父目录、闭源、不进这个仓库）。
+
+# 真实数据永远不该出现在这里：那是别人的主机清单与端到端信封。
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+/data/
+
+# 口令与本地编排：.env 由 .env.example 抄出来，填了值就是秘密。
+.env
+.env.*
+!.env.example
+
+# 本机产物。
+/server/syncd
+/server/syncd.exe
+/server/*.test
+/server/coverage.out
+*.log
+
+# 前端：源码提交，依赖与中间产物不提交。
+# 注意 web/dist/ 与 server/webdist/ 是两份东西 —— 后者是嵌进二进制里的那一份，要提交
+# （README「不装容器」那一节写了它怎么来），别顺手把整个 dist 模式都 ignore 掉。
+node_modules/
+web/dist/
+.DS_Store
+
+# 编辑器与工具留下的痕迹。
+.idea/
+.vscode/
+*.swp

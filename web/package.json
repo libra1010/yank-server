@@ -1,0 +1,28 @@
+{
+  "name": "dropterm-syncd-web",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Yank 同步服务管理端：只看服务端元数据，浏览器不碰端到端口令与密钥",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "vue-tsc --noEmit",
+    "preview": "vite preview",
+    "test:dom": "node tests/render-check.mjs",
+    "test:session": "node tests/sessionRefresh.mjs",
+    "test:session-wiring": "node tests/sessionWiring.mjs",
+    "test:gate": "npm run build && node tests/gate.mjs",
+    "test:e2e": "node tests/roundtrip.mjs",
+    "test:channel-page": "node tests/channelKeyPage.mjs"
+  },
+  "dependencies": {
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7",
+    "vue-tsc": "^2.2.0"
+  }
+}
