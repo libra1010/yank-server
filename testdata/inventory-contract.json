@@ -1,0 +1,33 @@
+{
+  "authKinds" : [
+    "agent",
+    "keyboard-interactive",
+    "password",
+    "private-key"
+  ],
+  "hosts" : {
+    "fields" : [
+      "authKind",
+      "group",
+      "hostname",
+      "jump",
+      "name",
+      "notes",
+      "port",
+      "username"
+    ],
+    "wireKey" : "hosts"
+  },
+  "note" : "客户端上行明文清单的契约快照（键名、字段白名单、正文容量、认证方式判别名）。事实来源是闭源客户端的 HostInventory 与 SnippetInventory 两个定义；公开仓只提交这份快照并逐字比对自己那半边，绝不读客户端源码 —— 源码不在这个仓里，镜像构建上下文里也没有。客户端改了字段必须连着重导这份，重导方式见同一目录里的 README 说明。",
+  "snippets" : {
+    "bodyLimit" : 2040,
+    "fields" : [
+      "body",
+      "group",
+      "name",
+      "params",
+      "updatedAt"
+    ],
+    "wireKey" : "snippets"
+  }
+}

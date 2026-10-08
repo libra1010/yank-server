@@ -29,6 +29,11 @@ curl -s localhost:8791/api/healthz
 漂了就红（少一份文件也算红，不会静默跳过）。换别的加速地址不必改文件：`MIRROR`、`GOPROXY`
 两个 build-arg 就够。产物是 `CGO_ENABLED=0` 的纯静态二进制 + alpine 运行层，非 root（uid 10001）跑。
 
+构建层会 `go test ./...` 一遍再出镜像，它吃 `testdata/` 与 `migrations/` 这两份提交产物 ——
+`.dockerignore` 只放 `server/` 进上下文，所以这两个目录单独开了洞，`Dockerfile` 里有对应的 `COPY`。
+其中 `testdata/inventory-contract.json` 是**闭源客户端上行形状的快照**：本仓只比"服务端常量 == 快照"，
+"快照 == 客户端"那一半由客户端的门查（详见 `testdata/README.md`）。
+
 ## 不装容器：单二进制
 
 ```bash

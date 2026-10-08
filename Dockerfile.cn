@@ -44,6 +44,13 @@ COPY server/ ./
 ARG VERSION=dev
 RUN go build -ldflags "-s -w -X main.version=${VERSION}" -o /out/syncd .
 
+# go test 还要吃两份提交进仓的产物：testdata/（互操作向量 + 客户端上行契约）与 migrations/
+# （给 DBA 审的那两份全量 DDL）。.dockerignore 把整棵树挡在上下文外，这两个目录得单独放行 ——
+# 不放行时向量与契约那两条会硬红（缺文件就红，不静默跳过），DDL 那条会自己报"这轮没得查"。
+# 放在 go build 之后：改测试夹具不该把二进制那一层重编一遍。
+COPY testdata/ /testdata/
+COPY migrations/ /migrations/
+
 # 构建层就把测试跑一遍：门禁红在这里，比部署到机器上再红便宜得多。
 RUN go test ./...
 

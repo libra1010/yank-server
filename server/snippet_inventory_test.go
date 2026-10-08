@@ -3,17 +3,13 @@ package main
 // 片段清单（SPEC §5.1，用户 2026-10-05 拍板："管理端要看得见片段本身"）的端到端与门禁。
 // 路子照主机清单抄：客户端在信封**旁边**挂一个永远明文的 `snippets` 数组，服务端不配通道
 // 密钥也列得出来；数组里塞进凭据键就整次写入拒收；`snippets: []` 真的清表。
-// 键名与字段集合是两端各写一遍的约定，改一边忘另一边时后果不是编译错误而是页面的片段列
-// 静默变空，所以最后那一组直接把 Swift 源读来对字面量。
+//
+// "键名两端各写一遍"那几条不在这儿 —— 它吃 testdata/inventory-contract.json，见 contract_test.go。
 
 import (
 	"bytes"
 	"encoding/json"
 	"net/http"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -242,72 +238,5 @@ func TestRollbackReindexesSnippets(t *testing.T) {
 	rows, _, raw = getSnippets(t, e, e.token)
 	if len(rows) != 1 || rows[0].Name != "一版片段" || rows[0].Body != "echo one" {
 		t.Fatalf("回退后片段索引应回到第一版，实际 %s", raw)
-	}
-}
-
-// ---------------------------------------------------------------- 键名门禁（两端各写一遍）
-
-func swiftSnippetSource(t *testing.T) string {
-	t.Helper()
-	path := filepath.Join("..", "..", "Sources", "TermKit", "Credentials", "SnippetInventory.swift")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("读不到客户端片段清单定义 %s：%v（静默跳过会让这条变成最弱的那种绿）", path, err)
-	}
-	return string(raw)
-}
-
-func TestSwiftSendsTheSnippetKeyGoReads(t *testing.T) {
-	src := swiftSnippetSource(t)
-	// Go 侧按 snippetInventoryWireKey 取数组；Swift 侧那个常量必须逐字相同。
-	if !strings.Contains(src, `wireKey = "`+snippetInventoryWireKey+`"`) {
-		t.Fatalf("客户端上传的键名与服务端读的不是一个：服务端读 %q", snippetInventoryWireKey)
-	}
-	// 端侧"过长就不展示"的容量必须不高于服务端那一格的容量：否则客户端以为自己在传完整正文，
-	// 服务端却把它截了 —— 而截断过的命令抄回去跑是另一码事。
-	match := regexp.MustCompile(`bodyLimit = (\d+)`).FindStringSubmatch(src)
-	if match == nil {
-		t.Fatal("客户端里找不到 bodyLimit 那个容量常量")
-	}
-	limit, err := strconv.Atoi(match[1])
-	if err != nil {
-		t.Fatalf("客户端的 bodyLimit 不是个数字：%s", match[1])
-	}
-	if limit > snippetBodyMaxRunes {
-		t.Errorf("端侧容量 %d 大于服务端那一格 %d：正文会被服务端截断而不是整条不展示",
-			limit, snippetBodyMaxRunes)
-	}
-}
-
-func TestSwiftSnippetFieldsAreExactlyTheWhitelist(t *testing.T) {
-	src := swiftSnippetSource(t)
-	start := strings.Index(src, "public struct SnippetInventoryEntry")
-	if start < 0 {
-		t.Fatal("客户端里找不到 SnippetInventoryEntry 这个结构")
-	}
-	end := strings.Index(src[start:], "\n}")
-	if end < 0 {
-		t.Fatal("SnippetInventoryEntry 的结构没闭合")
-	}
-	body := src[start : start+end]
-	fields := regexp.MustCompile(`(?m)^\s*public var (\w+)`).FindAllStringSubmatch(body, -1)
-	got := map[string]bool{}
-	for _, match := range fields {
-		got[match[1]] = true
-	}
-	if len(got) != len(snippetWhitelist) {
-		t.Fatalf("字段数对不上：客户端 %d 个，服务端白名单 %d 个（客户端=%v）",
-			len(got), len(snippetWhitelist), keysOf(got))
-	}
-	for want := range snippetWhitelist {
-		if !got[want] {
-			t.Errorf("客户端没有 %q 这一项，服务端白名单却收它：片段列会缺格", want)
-		}
-	}
-	// 反向：客户端多发的键会在 PUT 时被整次拒绝，所以"多一个"同样是事故。
-	for have := range got {
-		if !snippetWhitelist[have] {
-			t.Errorf("客户端发了 %q，服务端白名单里没有：每次同步都会被 400 拒掉", have)
-		}
 	}
 }

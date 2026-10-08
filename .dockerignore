@@ -5,6 +5,12 @@
 
 !server/**
 
+# 这两份是 go test 要读的提交产物（互操作向量 + 客户端上行契约 / 给 DBA 审的全量 DDL），
+# Dockerfile 里有对应的 COPY。挡在上下文外的话，构建层的测试会因"读不到文件"而红 ——
+# 那是对的，不是可跳过的。
+!testdata/**
+!migrations/**
+
 # 这一条看着多余，其实是救命的：server/ 下躺着的同名本机产物（Mach-O，22 MB，
 # 只在开发机上敲 go build 时掉出来的）会被 !server/** 一并放进来，
 # 于是 arm64 的 Mac 二进制混进 linux/amd64 镜像层里，还把镜像顶大一倍。
