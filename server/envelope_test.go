@@ -19,15 +19,17 @@ type vectorFile struct {
 	Vectors []vector `json:"vectors"`
 }
 
-// loadVectors reads the file emitted by the Swift client
-// (DT_EMIT_VECTORS=1 tools/devcheck.sh Sync). Skipping silently would make this the weakest
-// kind of green, so a missing file fails the test.
+// loadVectors reads the interoperability vectors this repo commits as an artifact.
+// They are produced by the reference client (the closed-source Mac app), never by this
+// server —— that asymmetry IS the test: Go verifies bytes Swift emitted on another machine.
+// See ../testdata/README.md. A missing file fails the test; skipping silently would make
+// this the weakest kind of green.
 func loadVectors(t *testing.T) []vector {
 	t.Helper()
 	path := filepath.Join("..", "testdata", "envelope-vectors.json")
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("读不到互操作向量 %s：%v（生成：在仓库根目录跑 DT_EMIT_VECTORS=1 bash tools/devcheck.sh Sync）",
+		t.Fatalf("读不到互操作向量 %s：%v（这是提交进仓的产物，重新生成见 testdata/README.md）",
 			path, err)
 	}
 	var file vectorFile

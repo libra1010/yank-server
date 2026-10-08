@@ -35,7 +35,7 @@ func snippetEnvelopePlaintext() string {
 }
 
 // bodyWithBothArrays 造新客户端真实上传的形状：信封 + 并肩挂着的明文 hosts 与 snippets
-// 两个数组（Sources/TermKit/Credentials/SyncWire.swift 里的 withInventory 就是同时挂这两个）。
+// 两个数组（这两份数组的线上形状见 SPEC.md §5.1，服务端只认字段名，不认是谁发的）。
 // 传空串表示这一格不挂，用来模拟只发其中一个数组的客户端。
 func bodyWithBothArrays(t *testing.T, hostsJSON, snippetsJSON string) []byte {
 	t.Helper()
