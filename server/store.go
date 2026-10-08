@@ -127,6 +127,30 @@ func (s *Store) hasColumn(table, column string) bool {
 	return s.db.QueryRow("SELECT "+column+" FROM "+table+" LIMIT 0").Err() == nil
 }
 
+// hasTable 是一句只读的探表：它不需要任何建表权限，所以线上"DBA 已经把表建好、应用账号
+// 只有读写"的那一档靠它判断该不该发 DDL。
+func (s *Store) hasTable(table string) bool {
+	return s.db.QueryRow("SELECT 1 FROM "+table+" LIMIT 0").Err() == nil
+}
+
+// missingTables 把"该有哪些表"从 schemaStatements 里抠出来再逐张探 —— 名单不另写一份，
+// 否则建表语句加了张表而名单忘了跟，启动就会在第一次用到它时炸在别处。
+func (s *Store) missingTables() []string {
+	var missing []string
+	for _, q := range schemaStatements(s.kind) {
+		const head = "CREATE TABLE IF NOT EXISTS "
+		if !strings.HasPrefix(q, head) {
+			continue
+		}
+		fields := strings.Fields(q[len(head):])
+		if len(fields) == 0 || s.hasTable(fields[0]) {
+			continue
+		}
+		missing = append(missing, fields[0])
+	}
+	return missing
+}
+
 // ddlFor 是 `syncd -ddl <方言>` 那一半：不连库、只把建表语句原样打印出来。所以 migrations/ 里
 // 那几份给 DBA 复核的 DDL 文件不是手抄副本，而是同一份 schemaStatements 的输出 —— 改表只需要
 // 改那一处，再重新生成，文件不可能悄悄和代码长得不一样。
@@ -203,9 +227,17 @@ func schemaStatements(kind string) []string {
 // Migrate 建出（或补列）本方言那一套表。启动时必跑一次：建表全是 IF NOT EXISTS，补列靠"这一列
 // 在不在"的探测，同一个库跑第二遍什么都不动 —— 所以容器重启、换镜像、反复滚动都不会毁数据。
 func (s *Store) Migrate(ctx context.Context) error {
-	for _, q := range schemaStatements(s.kind) {
-		if _, err := s.exec(q); err != nil {
-			return fmt.Errorf("建表失败：%w（方言 %s）", err, s.kind)
+	// 表已经齐就一句 DDL 都不发。以前这里无条件跑 CREATE TABLE IF NOT EXISTS：那个
+	// IF NOT EXISTS 是服务端自己判的，而 PostgreSQL 在走到那句之前就要 schema public 的
+	// CREATE 权限 —— 线上"DBA 先建表、应用账号只给读写"的那一档因此直接 42501 起不来
+	// （README 里"应用账号不必有建表权限"那条承诺就是这么破的）。
+	if missing := s.missingTables(); len(missing) > 0 {
+		for _, q := range schemaStatements(s.kind) {
+			if _, err := s.exec(q); err != nil {
+				return fmt.Errorf("建表失败：%w（方言 %s；库里还缺 %v。这一档要么让 DBA 跑 "+
+					"migrations/%s.sql，要么给这个账号建表权限）",
+					err, s.kind, missing, s.kind)
+			}
 		}
 	}
 	// 已经建过表的库拿不到上面那句里的新列 —— CREATE TABLE IF NOT EXISTS 对存在的表什么都不做，
@@ -220,7 +252,9 @@ func (s *Store) Migrate(ctx context.Context) error {
 			continue
 		}
 		if _, err := s.exec("ALTER TABLE hosts ADD COLUMN " + column.name + " " + column.ddl); err != nil {
-			return fmt.Errorf("升级 hosts 表（加 %s 一列）失败：%w（方言 %s）", column.name, err, s.kind)
+			return fmt.Errorf("升级 hosts 表（加 %s 一列）失败：%w（方言 %s；这一列在 "+
+				"migrations/%s.sql 里有，DBA 那一档请按那份补，应用账号不必有 ALTER 权限）",
+				column.name, err, s.kind, s.kind)
 		}
 	}
 	return nil

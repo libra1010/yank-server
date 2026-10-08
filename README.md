@@ -79,8 +79,9 @@ postgres://syncd:pw@db.internal:5432/syncd?sslmode=disable   ← PG 只认 URL �
 
 - SQLite 自动补 `?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)`，纯 Go 驱动，不需要 cgo。
 - `postgresql://` 也接受，等价于 `postgres://`。
-- 换后端不必改代码、不必手工跑 SQL：启动时 `CREATE TABLE IF NOT EXISTS` 一遍，缺列自己补
+- 换后端不必改代码、不必手工跑 SQL：启动时先只读探表，缺什么建什么，缺列自己补
   （`ALTER TABLE … ADD COLUMN`，靠"这一列在不在"的探测，同一个库反复跑幂等）。
+  表已经齐（比如 DBA 按 `migrations/` 建好的那一档）就一句 DDL 都不发 —— 详见下面「表结构」一节。
 
 ## 表结构：那两份 DDL 是导出的，不是手抄的
 
@@ -101,11 +102,17 @@ postgres://syncd:pw@db.internal:5432/syncd?sslmode=disable   ← PG 只认 URL �
 一次启动悄悄把列收窄，是那种"部署看着好、第一次大推送才炸"的坏法。分工写在 `server/store.go` 顶上。
 
 什么时候才需要手工执行 DDL：当你要求"连库账号不许自己建表"时，由 DBA 先跑那一份、再把 CREATE
-权限收掉。其余情况不用 —— 升级路径上没有"先跑 SQL 再启动"这一步。
+权限收掉。这一档是**正面支持**的：启动先用只读语句逐张探表，表齐就一条 DDL 都不发 —— 以前这里
+无条件发 `CREATE TABLE IF NOT EXISTS`，而 PostgreSQL 在判断"存不存在"之前就要 schema 的 CREATE
+权限，权限最小的线上账号因此 42501 起不来。日志里看得见这一句：
+`库里的表已齐（方言 postgres），本次启动不发建表语句`；缺表时改成报出缺哪几张并指名该跑
+`migrations/<方言>.sql`。这一档应用账号只需要 `SELECT,INSERT,UPDATE,DELETE`（本 schema 没有序列，
+不必另授 `USAGE ON SEQUENCE`），管理账号仍按 `SYNCD_ADMIN_USER` / `SYNCD_ADMIN_PASSWORD` 在启动时
+建 —— 那是一条 INSERT，不碰表结构。
 
-`0002`–`0004` 是历史上分三次加进去的列（认证方式、备注+跳板、片段表）。**新库不需要它们**：
-0001 里已经含这三样；老库也不用手工跑 —— 服务启动时自己补列。留着的意义是让复核的人看见
-"哪一格是什么时候加的、当时为什么加"，以及在没有服务权限的库里按顺序执行一遍。
+老库补的那几列（认证方式、备注、跳板）走同一套探测：只在**真缺**的时候才发一条
+`ALTER TABLE … ADD COLUMN`，表齐就一条都不发；DBA 那一档若库里真缺列，报错会指名去跑
+`migrations/` 那份全量，而不是借应用账号的权限悄悄改表。
 
 ## 数据库里到底存了什么
 

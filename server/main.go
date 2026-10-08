@@ -61,6 +61,13 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	// 先报一句库现在长什么样：线上那一档是 DBA 把表建好的，运维要看得见"这次启动没动表结构"，
+	// 而不是事后靠 42501 报错反推。
+	if missing := store.missingTables(); len(missing) == 0 {
+		log.Printf("库里的表已齐（方言 %s），本次启动不发建表语句", store.kind)
+	} else {
+		log.Printf("库里缺 %d 张表（%v），本次启动要建", len(missing), missing)
+	}
 	if err := store.Migrate(ctx); err != nil {
 		log.Fatalf("迁移失败：%v", err)
 	}
