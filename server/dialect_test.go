@@ -58,7 +58,7 @@ func dialectStore(t *testing.T) *Store {
 	return store
 }
 
-// 建表语句里有的那些表，必须一张都不差地真能查 —— 导出的 migrations/0001-baseline-*.sql
+// 建表语句里有的那些表，必须一张都不差地真能查 —— 导出的 migrations/{mysql,postgres}.sql
 // 和跑着的这份 schema 是同一事实来源的两个出口，这里钉它一次。
 func TestDialectTablesAllQueryable(t *testing.T) {
 	store := dialectStore(t)
@@ -265,7 +265,7 @@ func equalBytes(a, b []byte) bool {
 	return true
 }
 
-// 建表语句（migrations/0001-baseline-*.sql 就是从这一处打印的）和 models.go 的结构体，
+// 建表语句（migrations/{mysql,postgres}.sql 就是从这一处打印的）和 models.go 的结构体，
 // 各说一遍"这张表有哪些列"。两边漂一次的症状是"部署看着好好的、第一次真读写才炸在某一列上"，
 // 而且大概率炸在 PG 那侧 —— sqlite/mysql 常年真跑，PG 那条今年才刚把驱动名接对。
 // 所以这里不比文字、比**真库里长出来的列**：Migrate() 照 DDL 建完表，再逐表问一遍列集合，

@@ -68,13 +68,17 @@ postgres://syncd:pw@db.internal:5432/syncd?sslmode=disable   ← PG 只认 URL �
 - 换后端不必改代码、不必手工跑 SQL：启动时 `CREATE TABLE IF NOT EXISTS` 一遍，缺列自己补
   （`ALTER TABLE … ADD COLUMN`，靠"这一列在不在"的探测，同一个库反复跑幂等）。
 
-## 表结构：那三份 DDL 是导出的，不是手抄的
+## 表结构：那两份 DDL 是导出的，不是手抄的
 
-`migrations/0001-baseline-{sqlite,mysql,postgres}.sql` 的正文 = 代码里 `schemaStatements(方言)` 的
-逐字输出，由 `sh migrations/regenerate.sh` 重新导出（它保留每份文件顶上那段给 DBA 看的说明）。
-两道门盯着它，漂了就红：
+交付的建表文件只有两份，都是**全量**：`migrations/mysql.sql`、`migrations/postgres.sql`。
+没有 sqlite 那份 —— 内嵌库由服务自己建，交付它没意义；也没有 `0002-…` 那种按版本递增的增量脚本
+（老库缺的那几列由 `Migrate()` 启动时探测补齐，不靠人跑 SQL）。
 
-- `TestBaselineDDLFilesMatchCode` —— 三份文件的正文与代码输出逐字节比对；
+正文 = 代码里 `schemaStatements(方言)` 的逐字输出，由 `sh migrations/regenerate.sh` 重新导出
+（连每份文件顶上那段给 DBA 看的说明也是它生成的，所以没人会去手抄）。三道门盯着它，漂了就红：
+
+- `TestBaselineDDLFilesMatchCode` —— 两份文件的正文与代码输出逐字节比对；
+- `TestMigrationsDirHasOnlyFullDDL` —— 目录里只许这两份加一个导出脚本，往里塞增量文件会当场拦住；
 - `TestModelsMatchBaselineDDL` —— 真库里的列集合与 `server/models.go` 的结构体逐表比对。
 
 为什么建表不让 GORM 的 `AutoMigrate` 干（读写全都走 GORM，建表口径却不让它定）：

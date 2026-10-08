@@ -48,7 +48,7 @@ services:
 #   postgres://syncd:syncd@database:5432/syncd?sslmode=disable   （PG 只认 URL 形）
 # 前缀只用来挑方言，剩下的形状是驱动定的，不是这里选的。
 # 表结构不用手工建：syncd 启动时 CREATE TABLE IF NOT EXISTS 一遍。
-# 想让 DBA 先审 SQL 再建仓，见 migrations/0001-baseline-{sqlite,mysql,postgres}.sql。
+# 想让 DBA 先审 SQL 再建仓，见 migrations/mysql.sql 与 migrations/postgres.sql（全量，两份）。
 #
 #   database:
 #     image: docker.m.daocloud.io/library/postgres:16-alpine

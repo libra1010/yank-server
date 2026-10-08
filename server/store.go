@@ -18,8 +18,8 @@ import (
 // Store 是唯一和数据库说话的那一层。服务端不解密任何东西，所以这里每一格 body 都是不透明字节。
 //
 // 2026-10-06 起每一条读写走 GORM，但**建表口径不归它**：表结构仍以 schemaStatements 那份手写
-// DDL 为准 —— 同一个来源既跑在 Migrate() 里，也打印成 migrations/0001-baseline-<方言>.sql 给
-// DBA 审。两个理由都不是口味：
+// DDL 为准 —— 同一个来源既跑在 Migrate() 里，也打印成 migrations/{mysql,postgres}.sql 那两份
+// 全量交付件给 DBA 审（sqlite 不交付，按版本递增的增量脚本已废）。两个理由都不是口味：
 //
 //   · GORM 的 Migrator 取不出建表语句的文本（CreateTable 返回 error 而不是 *gorm.DB，ToSQL
 //     那扇门对它不开；DryRun 会话下驱动的 HasTable 还会直接 nil 崩）。"审的就是我跑的"守不住。
@@ -29,7 +29,7 @@ import (
 //
 // 所以分工：表、列、索引、类型继续由那一份 DDL 说了算；GORM 负责读写。于是 `?` 改 `$n` 这类
 // 方言翻译、以及驱动名拼错这一整类错（pgx 注册的驱动名是 "pgx"，从前这里递的是 "postgres"，
-// PostgreSQL 那条路从头就没通过）再没有下手的地方。结构体与那三份 DDL 的列集合由
+// PostgreSQL 那条路从头就没通过）再没有下手的地方。结构体与那两份全量 DDL 的列集合由
 // TestModelsMatchBaselineDDL 逐表比对，漂了就红。
 type Store struct {
 	g    *gorm.DB

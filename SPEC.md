@@ -279,9 +279,10 @@ TLS——要防"中间人冒充你的同步服务"仍然要把服务地址放到
   `sqlite://路径`、`mysql://user:pw@tcp(h:3306)/db`（go-sql-driver 那一串，`tcp(...)` 不能省）、
   `postgres://user:pw@host:5432/db?sslmode=disable`（PG 这一侧只认 URL 形，keyword 串不支持）。
 - 存储层 2026-10-06 起读写走 GORM，但**建表口径仍由那一份手写 `schemaStatements` 说了算**：同一个
-  来源既跑在启动迁移里，也由 `sh migrations/regenerate.sh` 导出成 `migrations/0001-baseline-<方言>.sql`
-  给 DBA 复核。两道门盯着它：`TestBaselineDDLFilesMatchCode` 逐字节比那三份文件的正文与代码输出，
-  `TestModelsMatchBaselineDDL` 逐表比列集合与结构体 —— 漂了就红。为什么不让 GORM 建表见 `store.go` 顶上那段。
+  来源既跑在启动迁移里，也由 `sh migrations/regenerate.sh` 导出成 `migrations/{mysql,postgres}.sql`
+  给 DBA 复核（只这两份全量；sqlite 不交付，增量脚本这套已废，老库补列由 `Migrate()` 探测）。三道门
+  盯着它：`TestBaselineDDLFilesMatchCode` 逐字节比正文与代码输出，`TestMigrationsDirHasOnlyFullDDL`
+  钉住目录形状，`TestModelsMatchBaselineDDL` 逐表比列集合与结构体 —— 漂了就红。为什么不让 GORM 建表见 `store.go` 顶上那段。
 - TLS 交给反代（Caddy/nginx）或 `-listen` 只绑 127.0.0.1；端侧对 `http://` 明文会警告并要求确认。
 - 通道口令只有管理页这一个入口：服务不带任何密钥启动，在「概览 › 加密传输（通道口令）」里按账号配置；
   它原样存进 `settings` 表（`skey = channel:<userID>`，值是口令明文），所以库文件的属主与权限要按密钥级
