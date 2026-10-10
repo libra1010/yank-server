@@ -255,8 +255,14 @@ TLS——要防"中间人冒充你的同步服务"仍然要把服务地址放到
 | POST | `/api/login` | `{user,password}` → `{token,userId}`（管理端会话令牌） |
 | POST | `/api/pair` | 已登录会话创建 `{code,expiresIn:300}`，一次性（换成功即删，第二次一律 401） |
 | POST | `/api/pair/exchange` | `{code}` → `{deviceToken,deviceId}`；设备令牌只给写自己 blob 的权限 |
-| PUT | `/api/blob` | 请求体是信封；`If-Match: <revision>` 乐观并发，不匹配返回 `409 {current}` |
+| PUT | `/api/blob` | 请求体是信封；`If-Match: <revision>` 乐观并发，不匹配返回 `409 {current}`，并带 `X-CURRENT-REVISION` 头 |
 | GET | `/api/blob` | 最新信封，`ETag: <revision>`；没有则 `204` |
+
+所有 `/api/*` 响应都带 `Cache-Control: no-store`。这一条不是卫生问题：部署方式就是把这个 API 挂在
+CDN/反代后面（§7），而每个 GET 都是按 Bearer 令牌区分的私有内容 —— 中间层一旦按 URL 缓存，
+A 设备会读到 B 设备那一份，版本号也会停在被缓存的旧版，于是客户端之后推什么都被 409 挡回
+「请先拉取合并」。客户端对应地：拉取时读不到可解析的版本号就**什么都不推**（不拿猜的 0 去撞），
+撞见 409 则重新拉一轮再推，只多试这一次。
 | GET | `/api/blob/history` | `[{revision,deviceId,createdAt,bytes}]`（只有元数据） |
 | GET | `/api/blob/at/<revision>` | 某个历史信封，供管理端解密查看/回退 |
 | POST | `/api/blob/rollback` | `{"revision":N}`：服务端把那一带密文原样前滚成新版本（服务端读不懂内容），返回新 `revision`；`PUT /api/blob` 只认设备令牌，所以浏览器会话的回退必须走这条 |

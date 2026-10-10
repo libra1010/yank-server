@@ -65,7 +65,20 @@ func (s *Server) Handler() http.Handler {
 	})
 	// The Vue console is embedded; anything not under /api is a client-side route.
 	mux.Handle("/", staticHandler())
-	return mux
+	return noAPICache(mux)
+}
+
+// noAPICache 给每一个 /api 响应盖一句"谁都不许缓存"。这不是卫生问题：同步 API 的每个 GET
+// 都是按 Bearer 令牌区分的私有内容，而部署方式就是把它挂在 CDN/反代后面（SPEC §7）。中间层
+// 一旦按 URL 缓存，A 设备拉到的就是 B 设备那一份；版本号也会停在被缓存的那一版，于是客户端
+// 拿旧版本号去推，永远被挡回「请先拉取合并」——一台机器自己把自己锁死。
+func noAPICache(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			w.Header().Set("Cache-Control", "no-store")
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // ---------------------------------------------------------------- plumbing
