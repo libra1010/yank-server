@@ -247,7 +247,11 @@ func (s *Server) handleBlobPut(w http.ResponseWriter, r *http.Request, userID, d
 	if errors.Is(err, ErrStaleWrite) {
 		// The client must merge against `current` rather than overwrite it.
 		w.Header().Set("X-CURRENT-REVISION", strconv.FormatInt(revision, 10))
-		fail(w, http.StatusConflict, "服务端已是第 %d 版，请先拉取合并", revision)
+		// 版本号同时写进正文，不是冗余：挂在 CDN/反代后面时自定义响应头可能被换掉，而 JSON
+		// 里的字段跟着体走。SPEC §6 一直写的是 `409 {current}`，此前只有头、没有体。
+		writeJSON(w, http.StatusConflict, map[string]any{
+			"reason":  "服务端已是第 " + strconv.FormatInt(revision, 10) + " 版，请先拉取合并",
+			"current": revision})
 		return
 	}
 	if err != nil {
@@ -317,6 +321,9 @@ func (s *Server) handleBlobGet(w http.ResponseWriter, r *http.Request, userID st
 		return
 	}
 	w.Header().Set("ETag", strconv.FormatInt(row.Revision, 10))
+	// 同一个数字再给一份自定义头：`ETag` 是缓存校验器，中间层会按自己的规则改写甚至换掉它
+	// （2026-10-10 线上就是这样：客户端拉回来的 ETag 不是版本号，于是永远推不进去）。
+	w.Header().Set("X-REVISION", strconv.FormatInt(row.Revision, 10))
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(row.Body)

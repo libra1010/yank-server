@@ -255,8 +255,14 @@ TLS——要防"中间人冒充你的同步服务"仍然要把服务地址放到
 | POST | `/api/login` | `{user,password}` → `{token,userId}`（管理端会话令牌） |
 | POST | `/api/pair` | 已登录会话创建 `{code,expiresIn:300}`，一次性（换成功即删，第二次一律 401） |
 | POST | `/api/pair/exchange` | `{code}` → `{deviceToken,deviceId}`；设备令牌只给写自己 blob 的权限 |
-| PUT | `/api/blob` | 请求体是信封；`If-Match: <revision>` 乐观并发，不匹配返回 `409 {current}`，并带 `X-CURRENT-REVISION` 头 |
-| GET | `/api/blob` | 最新信封，`ETag: <revision>`；没有则 `204` |
+| PUT | `/api/blob` | 请求体是信封；`If-Match: <revision>` 乐观并发，不匹配返回 `409 {"reason":…,"current":N}`，并带 `X-CURRENT-REVISION: N` 头 |
+| GET | `/api/blob` | 最新信封，`ETag: <revision>` 与 `X-REVISION: <revision>`；没有则 `204` |
+
+版本号给三把椅子：拉取的 `X-REVISION`、409 的 `X-CURRENT-REVISION`、409 正文里的 `current`。
+不是冗余 —— 2026-10-10 线上那次是 CDN 把 `ETag` 换成了自己的 hash，客户端永远读不到版本号、
+永远推不进去；头都可能被中间层改写，正文跟着体走。客户端对应地：`X-REVISION` 优先于 `ETag`；
+两处头都读不到时从 409 正文认；拉取什么都没带回来时，先按"我以为服务端还是空的"打一枪探针
+（服务端有数据就必然 409，这一枪不会写进任何东西），从那一枪的 409 里拿回版本号。
 
 所有 `/api/*` 响应都带 `Cache-Control: no-store`。这一条不是卫生问题：部署方式就是把这个 API 挂在
 CDN/反代后面（§7），而每个 GET 都是按 Bearer 令牌区分的私有内容 —— 中间层一旦按 URL 缓存，

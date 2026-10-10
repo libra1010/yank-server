@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -39,5 +40,38 @@ func TestAPINeverCacheable(t *testing.T) {
 	static, _ := e.call(http.MethodGet, "/brand.svg", "", nil)
 	if strings.EqualFold(static.Header.Get("Cache-Control"), "no-store") {
 		t.Error("静态件不该被盖上 no-store")
+	}
+}
+
+// 版本号得能穿过中间层：2026-10-10 线上那次就是 CDN 把 ETag 换掉，客户端永远推不进去。
+// 所以同一数字给三把椅子：拉取的 X-REVISION、409 的 X-CURRENT-REVISION、409 正文里的 current。
+// 头可以被改写，正文跟着体走。
+func TestRevisionSurvivesAProxyThatRewritesHeaders(t *testing.T) {
+	e := newEnv(t)
+	e.enroll("devops", "a-long-enough-pass")
+	e.pairDevice("MacBook-Air")
+	if put, _ := e.putBlob(envelopeBody(t, `{"revision":1}`), "0"); put.StatusCode != http.StatusOK {
+		t.Fatalf("首发应 200，实际 %d", put.StatusCode)
+	}
+	res, _ := e.call(http.MethodGet, "/api/blob", e.device, nil)
+	if got := res.Header.Get("X-REVISION"); got != "1" {
+		t.Errorf("GET /api/blob 应带 X-REVISION: 1，实际 %q", got)
+	}
+	res, body := e.putBlob(envelopeBody(t, `{"revision":2}`), "0")
+	if res.StatusCode != http.StatusConflict {
+		t.Fatalf("旧版本号应 409，实际 %d %s", res.StatusCode, body)
+	}
+	if got := res.Header.Get("X-CURRENT-REVISION"); got != "1" {
+		t.Errorf("409 应带 X-CURRENT-REVISION: 1，实际 %q", got)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("409 正文应是 JSON：%v（%s）", err, body)
+	}
+	if got, _ := payload["current"].(float64); got != 1 {
+		t.Errorf("409 正文应带 current=1，实际 %v", payload["current"])
+	}
+	if reason, _ := payload["reason"].(string); !strings.Contains(reason, "第 1 版") {
+		t.Errorf("409 那句中文理由不能丢：%q", reason)
 	}
 }
